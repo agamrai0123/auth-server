@@ -1,0 +1,26 @@
+# auth-server/auth [auth-server/auth.test]
+auth\handlers_test.go:16:17: undefined: createTestContext
+auth\handlers_test.go:44:17: undefined: createTestContext
+auth\handlers_test.go:71:17: undefined: createTestContext
+auth\handlers_test.go:105:17: undefined: createTestContext
+auth\handlers_test.go:133:17: undefined: createTestContext
+auth\handlers_test.go:162:17: undefined: createTestContext
+auth\handlers_test.go:189:17: undefined: createTestContext
+auth\handlers_test.go:223:17: undefined: createTestContext
+auth\handlers_test.go:257:17: undefined: createTestContext
+auth\handlers_test.go:292:17: undefined: createTestContext
+auth\handlers_test.go:292:17: too many errors
+=== RUN   TestGracefulShutdownTimeout
+--- PASS: TestGracefulShutdownTimeout (0.00s)
+=== RUN   TestContextCreation
+--- PASS: TestContextCreation (0.10s)
+=== RUN   TestErrorHandling
+--- PASS: TestErrorHandling (0.00s)
+=== RUN   TestSignalHandling
+--- PASS: TestSignalHandling (0.00s)
+=== RUN   TestMainConstants
+--- PASS: TestMainConstants (0.00s)
+PASS
+ok  	auth-server	(cached)
+FAIL	auth-server/auth [build failed]
+FAIL
