@@ -58,20 +58,21 @@ func (s *authServer) Start() {
 	}()
 }
 
-// NewAuthServer creates a new auth server instance with proper error handling
+// NewAuthServer creates a new auth server instance with comprehensive initialization
+// Returns nil if critical initialization fails
 func NewAuthServer() *authServer {
 	logger := GetLogger()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Initialize database connection
-	dbURL := fmt.Sprintf("http://%s:%d", AppConfig.Database.Host, AppConfig.Database.Port)
+	// Oracle DSN format: user/password@host:port/service_name
+	dbURL := fmt.Sprintf("sys/Oracle123!@%s:%d/XE", AppConfig.Database.Host, AppConfig.Database.Port)
 	db, err := newDbClient(dbURL)
 	if err != nil {
 		logger.Error().
 			Err(err).
 			Str("db_url", dbURL).
 			Msg("Failed to initialize database client")
-		// Don't fatal here, allow graceful degradation
 		cancel()
 		return nil
 	}
@@ -80,39 +81,67 @@ func NewAuthServer() *authServer {
 		Str("db_url", dbURL).
 		Msg("Database client initialized successfully")
 
-	return &authServer{
-		jwtSecret: JWTsecret,
-		ctx:       ctx,
-		cancel:    cancel,
-		db:        db,
+	// Initialize client cache (10 minute TTL, max 5000 clients)
+	clientCache := NewClientCache(10*time.Minute, 5000)
+
+	// Create auth server instance
+	authServer := &authServer{
+		jwtSecret:   JWTsecret,
+		ctx:         ctx,
+		cancel:      cancel,
+		db:          db,
+		clientCache: clientCache,
 	}
+
+	// Initialize token batch writer (batch 1000 tokens, flush every 5 seconds)
+	// This must come after authServer is created since it needs a reference to it
+	authServer.tokenBatcher = NewTokenBatchWriter(authServer, 1000, 5*time.Second)
+
+	logger.Info().Msg("Auth server initialized successfully")
+	return authServer
 }
 
-// Shutdown gracefully shuts down the auth server
+// Shutdown gracefully shuts down the auth server with proper cleanup order
+// Timeout context is used to limit shutdown duration
 func (s *authServer) Shutdown(ctx context.Context) error {
 	logger := GetLogger()
 
-	// Close database connection
+	// Step 1: Stop accepting new token writes (flush any pending)
+	if s.tokenBatcher != nil {
+		logger.Info().Msg("Stopping token batch writer...")
+		s.tokenBatcher.Stop()
+	}
+
+	// Step 2: Stop accepting new cache operations
+	if s.clientCache != nil {
+		logger.Info().Msg("Stopping client cache...")
+		s.clientCache.Stop()
+	}
+
+	// Step 3: Close database connection
 	if s.db != nil {
+		logger.Info().Msg("Closing database connection...")
 		if err := s.db.Close(); err != nil {
 			logger.Warn().Err(err).Msg("Error closing database connection")
 		}
 	}
 
-	// Cancel context
+	// Step 4: Cancel main context
 	if s.cancel != nil {
 		s.cancel()
 	}
 
-	// Shutdown HTTP server
+	// Step 5: Shutdown HTTP server
 	if s.httpSrv != nil {
-		logger.Info().Msg("Shutting down HTTP server")
+		logger.Info().Msg("Shutting down HTTP server...")
 		if err := s.httpSrv.Shutdown(ctx); err != nil {
+			logger.Error().Err(err).Msg("HTTP server shutdown error")
 			return fmt.Errorf("HTTP server shutdown error: %w", err)
 		}
 		logger.Info().Msg("HTTP server shutdown complete")
 	}
 
+	logger.Info().Msg("Auth server shutdown complete")
 	return nil
 }
 

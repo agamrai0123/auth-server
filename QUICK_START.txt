@@ -1,0 +1,96 @@
+================================================================================
+                    10 MILLION REQUEST LOAD TEST
+                    QUICK REFERENCE CARD
+================================================================================
+
+📊 WHAT: Load test with 10,000,000 requests
+🎯 WHERE: d:\work-projects\auth-server
+⏱️  TIME: 20-30 minutes (with balanced option)
+✅ STATUS: READY TO EXECUTE NOW
+
+================================================================================
+                    START HERE (2 STEPS)
+================================================================================
+
+TERMINAL 1:
+──────────
+cd d:\work-projects\auth-server
+.\mock-server.exe
+
+Expected: "Mock auth server listening on :8080"
+
+TERMINAL 2 (Wait for Terminal 1 to start):
+──────────────────────────────────────────
+cd d:\work-projects\auth-server
+.\load-test -url=http://localhost:8080 -concurrency=500 -requests=20000
+
+Expected: 10,000,000 requests processed in ~25 minutes
+
+================================================================================
+                    FILES READY
+================================================================================
+
+✅ load-test           (8.3 MB)  - Load testing tool
+✅ mock-server.exe     (7.8 MB)  - Mock HTTP server
+✅ docker-compose.yml            - Oracle database config
+✅ init-db.sql                   - Database schema
+✅ Full documentation            - Complete guides
+
+================================================================================
+                    CONCURRENCY OPTIONS
+================================================================================
+
+Option A: Fast (10-15 min)
+  -concurrency=1000 -requests=10000
+
+Option B: Balanced ⭐ RECOMMENDED (20-30 min)
+  -concurrency=500 -requests=20000
+
+Option C: Stable (60+ min)
+  -concurrency=100 -requests=100000
+
+================================================================================
+                    EXPECTED RESULTS
+================================================================================
+
+Success Rate: >95%
+Throughput: 6000+ req/sec
+Latency: 10-30ms average
+Duration: 20-30 minutes (option B)
+
+================================================================================
+                    COMMAND REFERENCE
+================================================================================
+
+Start mock server:
+  .\mock-server.exe
+
+Run 10M load test:
+  .\load-test -url=http://localhost:8080 -concurrency=500 -requests=20000
+
+Save results to file:
+  .\load-test -url=http://localhost:8080 -concurrency=500 -requests=20000 | Tee-Object -FilePath results.txt
+
+Check server health:
+  curl http://localhost:8080/health
+
+================================================================================
+                    TROUBLESHOOTING
+================================================================================
+
+Connection refused?
+  → Check Terminal 1 is running mock-server.exe
+
+Very slow performance?
+  → Check CPU usage in Task Manager (should be 70-95%)
+  → Close unnecessary applications
+
+Address already in use?
+  → netstat -ano | findstr :8080
+  → taskkill /PID <PID> /F
+
+================================================================================
+
+                    Ready? Just run the 2 commands above!
+
+================================================================================

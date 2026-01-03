@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # Oracle Database
+  oracle-db:
+    image: gvenzl/oracle-xe:21.3.0
+    environment:
+      ORACLE_PASSWORD: Oracle123!
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD", "sqlplus", "-L", "sys/Oracle123!@localhost:1521/XE", "as", "sysdba"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - auth-network
+    container_name: oracle-auth-db
+
+  # Auth Server (builds from source)
+  auth-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DB_URL: oracle://sys:Oracle123!@localhost:1521/XE
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      oracle-db:
+        condition: service_healthy
+    networks:
+      - auth-network
+    container_name: auth-server
+
+volumes:
+  oracle-data:
+    name: oracle-auth-data
+
+networks:
+  auth-network:
+    name: auth-network
+    driver: bridge
+

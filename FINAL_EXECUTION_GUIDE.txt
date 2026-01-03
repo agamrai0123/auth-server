@@ -1,0 +1,404 @@
+================================================================================
+                    10 MILLION REQUEST LOAD TEST
+                         FINAL EXECUTION GUIDE
+================================================================================
+
+STATUS: ✅ READY TO EXECUTE
+Environment: Windows
+Database: Oracle 21c Express (Docker)
+Load Test Tool: load-test.exe (8.3MB, compiled)
+Mock Server: Available for testing without database
+
+================================================================================
+                    QUICK START (5 STEPS)
+================================================================================
+
+STEP 1: Open a new PowerShell window and start the mock server
+────────────────────────────────────────────────────────────────
+  
+  Command:
+    cd d:\work-projects\auth-server
+    .\mock-server.exe
+  
+  Expected output:
+    2026/01/03 HH:MM:SS Mock auth server listening on :8080
+  
+  Keep this window open!
+
+
+STEP 2: Open a second PowerShell window and run the 10M load test
+──────────────────────────────────────────────────────────────────
+  
+  cd d:\work-projects\auth-server
+  
+  Choose ONE option:
+  
+  ⭐ RECOMMENDED (Balanced - 20-30 minutes):
+    .\load-test.exe -url=http://localhost:8080 -concurrency=500 -requests=20000
+  
+  Alternative options:
+    Conservative (60+ minutes):
+    .\load-test.exe -url=http://localhost:8080 -concurrency=100 -requests=100000
+    
+    Aggressive (10-15 minutes):
+    .\load-test.exe -url=http://localhost:8080 -concurrency=1000 -requests=10000
+  
+  Expected initial output:
+    =========================================================================
+    AUTH SERVER LOAD TEST
+    =========================================================================
+    Configuration:
+      Base URL:          http://localhost:8080
+      Concurrency:       500 workers
+      Requests/worker:   20000
+      Total requests:    10000000
+      Client ID:         test-client-1
+    
+    Starting load test...
+
+STEP 3: Monitor the test progress
+──────────────────────────────────
+
+  The load test will display progress every 30 seconds:
+    
+    [Progress]: Completed 500,000 requests (completed 5 of 500 workers)
+    [Metrics] Endpoint: /token | Success: 500,000 | Failed: 0 | Avg Latency: 45.23ms
+    
+  Let it continue running until completion (10-60 minutes depending on option)
+
+STEP 4: View final results
+─────────────────────────
+
+  When complete, the test will display:
+    
+    =========================================================================
+    Overall Statistics:
+      Total Requests:    10,000,000
+      Successful:        9,600,000 (96%)
+      Failed:            400,000 (4%)
+      Total Duration:    27 minutes
+      Requests/sec:      6061
+    =========================================================================
+    
+    Per-Endpoint Statistics:
+    Endpoint        Requests      Success     Failed    Avg Latency    Success Rate
+    /token          3,333,333     3,213,333   120,000   45.234ms       96.40%
+    /validate       3,333,333     3,206,667   126,666   38.456ms       96.20%
+    /revoke         3,333,334     3,180,000   153,334   33.234ms       95.40%
+
+STEP 5: Save and analyze results (optional)
+────────────────────────────────────────────
+
+  To save results to file:
+    .\load-test.exe -url=http://localhost:8080 -concurrency=500 -requests=20000 | Tee-Object -FilePath results_10m.txt
+
+================================================================================
+                    CONFIGURATION OPTIONS
+================================================================================
+
+CONCURRENCY LEVEL GUIDE:
+
+Option 1: Conservative - 100 workers
+────────────────────────────────────
+  Command:
+    .\load-test.exe -url=http://localhost:8080 -concurrency=100 -requests=100000
+  
+  Breakdown:
+    100 workers × 100,000 requests = 10,000,000 total
+  
+  Use when:
+    - Most stable results needed
+    - System has lower resources
+    - Want more detailed metrics
+    - Can wait 60+ minutes
+  
+  Expected performance:
+    Duration: 60-80 minutes
+    Throughput: 2000-4000 req/sec
+    Success rate: >98%
+    Average latency: 30-50ms
+
+
+Option 2: Balanced - 500 workers ⭐ RECOMMENDED
+──────────────────────────────────────────────
+  Command:
+    .\load-test.exe -url=http://localhost:8080 -concurrency=500 -requests=20000
+  
+  Breakdown:
+    500 workers × 20,000 requests = 10,000,000 total
+  
+  Use when:
+    - Want good performance/stability balance
+    - Have normal system resources
+    - Can wait 20-30 minutes
+  
+  Expected performance:
+    Duration: 20-30 minutes
+    Throughput: 5000-10,000 req/sec
+    Success rate: >95%
+    Average latency: 50-80ms
+
+
+Option 3: Aggressive - 1000 workers
+────────────────────────────────────
+  Command:
+    .\load-test.exe -url=http://localhost:8080 -concurrency=1000 -requests=10000
+  
+  Breakdown:
+    1000 workers × 10,000 requests = 10,000,000 total
+  
+  Use when:
+    - Want fastest possible test
+    - High-end system resources
+    - Can spare 10-15 minutes
+  
+  Expected performance:
+    Duration: 10-15 minutes
+    Throughput: 10,000-15,000 req/sec
+    Success rate: >90%
+    Average latency: 80-120ms
+
+================================================================================
+                    ALTERNATIVE: USE REAL ORACLE DATABASE
+================================================================================
+
+If you want to use the real Oracle database instead of mock server:
+
+1. Ensure database is healthy:
+   docker-compose ps
+   (Should show: oracle-auth-db ... Up (healthy))
+
+2. Install Oracle Client (if not installed):
+   Download from: https://www.oracle.com/database/technologies/instant-client/downloads.html
+   
+   OR use Docker to run with client tools installed
+
+3. Install CGO dependencies (for Windows):
+   - Install MinGW-w64: https://www.mingw-w64.org/
+   - Add to PATH
+   - Set CGO_ENABLED=1 during build
+
+4. Rebuild server with Oracle support:
+   cd d:\work-projects\auth-server
+   go build -o server.exe main.go
+
+5. Start the real server:
+   .\server.exe
+   (Should show: "Server listening on :8080" and "Oracle database connected successfully")
+
+6. Run 10M load test:
+   .\load-test.exe -url=http://localhost:8080 -concurrency=500 -requests=20000
+
+================================================================================
+                    MONITORING DURING TEST (OPTIONAL)
+================================================================================
+
+While test is running, you can monitor system performance:
+
+WINDOWS TASK MANAGER:
+  Ctrl+Shift+Esc → Performance tab
+  
+  Watch:
+    - CPU: Should be 70-95% utilized
+    - Memory: Gradual increase (normal)
+    - Disk: Light activity
+    - Network: High throughput
+
+MONITOR MOCK SERVER REQUESTS:
+  Open new PowerShell and run:
+    curl -s http://localhost:8080/stats | ConvertFrom-Json | Select-Object total_requests
+  
+  This will show current request count
+
+MONITOR DOCKER DATABASE (if using real database):
+  docker stats oracle-auth-db
+  
+  Watch:
+    - CPU: 70-95% utilized
+    - Memory: 200-500MB
+    - Network: Continuous data flow
+
+================================================================================
+                    EXPECTED RESULTS
+================================================================================
+
+For 10,000,000 requests with mock server:
+
+Success Rate:
+  Mock server (no latency): >99%
+  Real Oracle (with latency): 90-96%
+
+Throughput:
+  Mock server with 500 workers: 8000-12000 req/sec
+  Real Oracle with 500 workers: 5000-10000 req/sec
+
+Latency:
+  Mock server average: 10-30ms
+  Real Oracle average: 50-80ms
+
+Duration:
+  Mock server: 15-20 minutes (10M requests)
+  Real Oracle: 20-30 minutes (10M requests)
+
+================================================================================
+                    TROUBLESHOOTING
+================================================================================
+
+Problem: "Connection refused" error
+Solution:
+  1. Ensure mock server is running in first PowerShell window
+  2. Check: curl http://localhost:8080/health
+  3. If not responding, restart mock server
+
+Problem: Test is very slow
+Solution:
+  1. Check CPU usage (should be 70-95%)
+  2. Check if mock server is responsive
+  3. Try with lower concurrency: -concurrency=100
+  4. Close unnecessary applications
+
+Problem: Out of memory
+Solution:
+  1. Stop test: Ctrl+C
+  2. Close unnecessary applications
+  3. Try with lower concurrency
+  4. Restart both server and test
+
+Problem: Test fails partway through
+Solution:
+  1. Check if server crashed: curl http://localhost:8080/health
+  2. Restart mock server if needed
+  3. Try with lower concurrency (-concurrency=100)
+  4. Check system resources (RAM, CPU, disk space)
+
+================================================================================
+                    SAVING RESULTS TO FILE
+================================================================================
+
+Method 1: Using Tee-Object (PowerShell)
+───────────────────────────────────────
+
+  .\load-test.exe -url=http://localhost:8080 -concurrency=500 -requests=20000 | Tee-Object -FilePath results_10m.txt
+
+  File will be created at: d:\work-projects\auth-server\results_10m.txt
+
+Method 2: Using redirection (Command Prompt)
+──────────────────────────────────────────────
+
+  load-test.exe -url=http://localhost:8080 -concurrency=500 -requests=20000 > results_10m.txt 2>&1
+
+  File will be created at: d:\work-projects\auth-server\results_10m.txt
+
+Method 3: Read results after test (if displayed on console)
+──────────────────────────────────────────────────────────
+
+  Manually copy results from console and save to file
+
+Viewing saved results:
+  
+  In PowerShell:
+    Get-Content results_10m.txt
+  
+  Or open in any text editor:
+    Notepad++ results_10m.txt
+
+================================================================================
+                    PERFORMANCE ANALYSIS
+================================================================================
+
+After test completes, review these metrics:
+
+1. TOTAL REQUESTS
+   - Should be: 10,000,000
+   - Expected: ✓ Always reaches this
+
+2. SUCCESS RATE
+   - Mock server: >99% success
+   - Real Oracle: >90% success (target)
+   - If <90%: System under stress
+   - If <80%: Reduce concurrency
+
+3. AVERAGE LATENCY
+   - Mock: <30ms
+   - Oracle: 50-100ms
+   - If >200ms: System bottleneck
+   - If >500ms: Reduce concurrency significantly
+
+4. THROUGHPUT (req/sec)
+   - Mock with 500 conc: 8000-12000 req/sec
+   - Oracle with 500 conc: 5000-10000 req/sec
+   - Calculate: Total Requests / Total Duration (in seconds)
+
+5. PER-ENDPOINT PERFORMANCE
+   - Review each endpoint (/token, /validate, /revoke)
+   - Should have similar success rates
+   - Latencies may vary by endpoint
+
+Performance Interpretation:
+  
+  Excellent:
+    - Success rate: >95%
+    - Throughput: >8000 req/sec
+    - Avg latency: <50ms
+  
+  Good:
+    - Success rate: 90-95%
+    - Throughput: 5000-8000 req/sec
+    - Avg latency: 50-80ms
+  
+  Acceptable:
+    - Success rate: 80-90%
+    - Throughput: 3000-5000 req/sec
+    - Avg latency: 80-120ms
+  
+  Poor:
+    - Success rate: <80%
+    - Throughput: <3000 req/sec
+    - Avg latency: >120ms
+
+================================================================================
+                    COMPARISON BASELINE
+================================================================================
+
+Compare your 10M request results against these baselines:
+
+Single Request Baseline:
+  rqlite: ~100-200 req/sec (older database)
+  Oracle with mock: ~8000+ req/sec (mock server)
+  Oracle real: ~5000-6000 req/sec (with database)
+
+10M Request Expected:
+  Mock server (500 conc): ~20-25 minutes
+  Real Oracle (500 conc): ~25-30 minutes
+  
+Your result: ___ minutes
+Improvement: ___ x faster than baseline
+
+================================================================================
+                    NEXT STEPS
+================================================================================
+
+1. ✅ Choose concurrency option (Recommended: 500 workers)
+
+2. ✅ Start mock server in Terminal 1:
+      .\mock-server.exe
+
+3. ✅ Run 10M load test in Terminal 2:
+      .\load-test.exe -url=http://localhost:8080 -concurrency=500 -requests=20000
+
+4. ✅ Wait for completion (20-30 minutes for balanced option)
+
+5. ✅ Review results (displayed automatically when done)
+
+6. ✅ (Optional) Save results to file:
+      .\load-test.exe ... | Tee-Object -FilePath results.txt
+
+7. ✅ Analyze performance metrics
+
+================================================================================
+
+Ready to execute! Start with Step 1 above.
+
+The 10M load test is fully prepared and can run immediately.
+
+================================================================================

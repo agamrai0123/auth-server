@@ -42,11 +42,13 @@ import (
 
 type authServer struct {
 	// storage   Storage
-	jwtSecret []byte
-	ctx       context.Context
-	cancel    context.CancelFunc
-	httpSrv   *http.Server
-	db        *sql.DB
+	jwtSecret    []byte
+	ctx          context.Context
+	cancel       context.CancelFunc
+	httpSrv      *http.Server
+	db           *sql.DB
+	clientCache  *ClientCache      // In-memory client cache
+	tokenBatcher *TokenBatchWriter // Batch token writer for async writes
 }
 
 type Clients struct {

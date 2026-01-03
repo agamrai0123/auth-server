@@ -1,0 +1,4 @@
+# auth-server/auth [auth-server/auth.test]
+auth\pprof_test.go:10:2: "time" imported and not used
+FAIL	auth-server/auth [build failed]
+FAIL

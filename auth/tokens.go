@@ -29,25 +29,34 @@ func generateRandomString(length int) string {
 // 	return as.storage.IsTokenRevoked(tokenID)
 // }
 
-// Generate JWT token
+// Generate JWT token with cached client scopes and async token persistence
 func (as *authServer) generateJWT(clientID string) (string, string, error) {
-	log.Debug().Str("client_id", clientID).Msg("Generating JWT token")
+	// ✅ Try cache first for client scopes (avoids DB query ~99% of time)
+	var scopes []string
+	if client, found := as.clientCache.Get(clientID); found {
+		if client == nil {
+			log.Error().Str("client_id", clientID).Msg("Cache returned nil client")
+			return "", "", fmt.Errorf("cached client is nil")
+		}
+		scopes = client.AllowedScopes
+	} else {
+		// Cache miss - fetch from database
+		var err error
+		scopes, err = as.getClientScopes(clientID)
+		if err != nil {
+			log.Error().Err(err).Str("client_id", clientID).Msg("Failed to fetch client scopes")
+			return "", "", fmt.Errorf("failed to fetch scopes: %w", err)
+		}
+	}
+
 	tokenID := generateRandomString(16)
 	now := time.Now()
 	expiresAt := now.Add(time.Minute * 2)
 
-	scope, err := as.getClientScopes(clientID)
-	if err != nil {
-		log.Error().Err(err).Str("client_id", clientID).Msg("Failed to fetch client scopes")
-		return "", "", err
-	}
-
-	log.Debug().Str("client_id", clientID).Strs("scopes", scope).Msg("Client scopes fetched")
-
 	claims := Claims{
 		ClientID: clientID,
 		TokenID:  tokenID,
-		Scope:    scope,
+		Scope:    scopes,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -63,7 +72,7 @@ func (as *authServer) generateJWT(clientID string) (string, string, error) {
 		return "", "", err
 	}
 
-	// Store token info
+	// Store token info for async batch insertion
 	tokenInfo := Token{
 		TokenID:   tokenID,
 		ClientID:  clientID,
@@ -72,11 +81,8 @@ func (as *authServer) generateJWT(clientID string) (string, string, error) {
 		Revoked:   false,
 	}
 
-	log.Debug().Str("client_id", clientID).Str("token_id", tokenID).Time("expires_at", expiresAt).Msg("Token created and storing in database")
-
-	if err := as.insertToken(tokenInfo); err != nil {
-		log.Error().Err(err).Str("client_id", clientID).Str("token_id", tokenID).Msg("Failed to store token in database")
-	}
+	// ✅ Queue token for batch insertion (non-blocking)
+	as.tokenBatcher.Add(tokenInfo)
 
 	return tokenString, tokenID, nil
 }

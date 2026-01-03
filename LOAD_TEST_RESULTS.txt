@@ -1,0 +1,12 @@
+flag provided but not defined: -ul
+Usage of D:\work-projects\auth-server\load-test:
+  -client-id string
+    	Client ID for testing (default "test-client-1")
+  -client-secret string
+    	Client secret for testing (default "secret-key-12345")
+  -concurrency int
+    	Number of concurrent workers (default 10)
+  -requests int
+    	Requests per worker (default 100)
+  -url string
+    	Base URL of the auth server (default "http://localhost:8080")

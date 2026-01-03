@@ -1,0 +1,408 @@
+================================================================================
+                    10 MILLION REQUEST LOAD TEST PLAN
+================================================================================
+
+Execution Date: 2024-01-03
+Target: 10,000,000 total requests
+Test Type: Ultra-high volume stress test
+Status: READY TO EXECUTE
+
+================================================================================
+                         EXECUTION PLAN
+================================================================================
+
+For 10 million requests, use one of these configurations:
+
+OPTION 1: Maximum Concurrency (FASTEST - ~10-15 minutes)
+  ./load-test -url=http://localhost:8080 \
+    -concurrency=1000 -requests=10000
+  
+  Breakdown:
+    - 1000 concurrent workers
+    - 10000 requests per worker
+    - Total: 1000 × 10000 = 10,000,000 requests
+    - Expected Duration: 10-15 minutes
+    - Expected Throughput: 10,000-15,000 req/sec
+
+OPTION 2: High Concurrency (RECOMMENDED - ~20-30 minutes)
+  ./load-test -url=http://localhost:8080 \
+    -concurrency=500 -requests=20000
+  
+  Breakdown:
+    - 500 concurrent workers
+    - 20000 requests per worker
+    - Total: 500 × 20000 = 10,000,000 requests
+    - Expected Duration: 20-30 minutes
+    - Expected Throughput: 5,000-10,000 req/sec
+
+OPTION 3: Balanced Concurrency (SAFER - ~30-40 minutes)
+  ./load-test -url=http://localhost:8080 \
+    -concurrency=200 -requests=50000
+  
+  Breakdown:
+    - 200 concurrent workers
+    - 50000 requests per worker
+    - Total: 200 × 50000 = 10,000,000 requests
+    - Expected Duration: 30-40 minutes
+    - Expected Throughput: 4,000-8,000 req/sec
+
+OPTION 4: Conservative (STABLE - ~60+ minutes)
+  ./load-test -url=http://localhost:8080 \
+    -concurrency=100 -requests=100000
+  
+  Breakdown:
+    - 100 concurrent workers
+    - 100000 requests per worker
+    - Total: 100 × 100000 = 10,000,000 requests
+    - Expected Duration: 60+ minutes
+    - More stable, less resource intensive
+
+================================================================================
+                     SETUP REQUIRED BEFORE TESTING
+================================================================================
+
+STEP 1: Ensure Oracle Database is Running
+  Command:  docker-compose ps
+  Expected: oracle-auth-db    Up (healthy)
+  
+  If not running:
+    docker-compose up -d
+    (Wait 2-3 minutes for initialization)
+
+STEP 2: Start Auth Server (New Terminal)
+  Command:  go run main.go
+  Expected: 
+    - Server listening on :8080
+    - Oracle database connected successfully
+
+STEP 3: Verify Server is Ready
+  Command:  curl -s http://localhost:8080/health || echo "Not ready yet"
+  Expected: Should respond (200 or similar)
+
+STEP 4: Run the 10M Load Test (Third Terminal)
+  Choose one option above based on your preference
+  
+  Recommended: OPTION 2 (balanced performance)
+    ./load-test -url=http://localhost:8080 \
+      -concurrency=500 -requests=20000 | tee 10M_LOAD_TEST_RESULTS.txt
+
+================================================================================
+                     EXPECTED RESULTS FOR 10M REQUESTS
+================================================================================
+
+Success Rate (Target):
+  With stable server: >95% success
+  With some load shedding: >90% success
+  With overload: 80-90% success
+
+Throughput Expectations:
+  Option 1 (1000 conc):  10,000-15,000 req/sec
+  Option 2 (500 conc):   5,000-10,000 req/sec
+  Option 3 (200 conc):   4,000-8,000 req/sec
+  Option 4 (100 conc):   2,000-4,000 req/sec
+
+Latency Expectations (per request):
+  Average:   30-100ms (may increase under heavy load)
+  Min:       2-10ms
+  Max:       500ms - 2s (may spike with 10M requests)
+  P95:       100-500ms
+  P99:       500ms - 2s
+
+Total Duration:
+  Option 1: ~10-15 minutes
+  Option 2: ~20-30 minutes
+  Option 3: ~30-40 minutes
+  Option 4: ~60+ minutes
+
+System Resource Usage:
+  CPU:       80-95% (during test)
+  Memory:    500MB - 2GB (depending on concurrency)
+  Network:   Highly variable (depends on server capacity)
+
+================================================================================
+                         SAMPLE TEST OUTPUT
+================================================================================
+
+=======================================================================
+                   AUTH SERVER LOAD TEST (10M Requests)
+=======================================================================
+
+Configuration:
+  Base URL:          http://localhost:8080
+  Concurrency:       500 workers
+  Requests/worker:   20000
+  Total requests:    10,000,000
+  Client ID:         test-client-1
+
+Starting load test...
+
+[Progress updates will appear every 30 seconds during test]
+
+=======================================================================
+                        LOAD TEST RESULTS
+=======================================================================
+
+Overall Statistics:
+  Total Requests:    10,000,000
+  Successful:        9,600,000 (96%)
+  Failed:            400,000 (4%)
+  Total Duration:    27.5 minutes (1650 seconds)
+  Requests/sec:      6,060.6
+
+Latency Statistics:
+  Min:               2.123ms
+  Max:               2,456.789ms
+  Avg:               52.345ms
+
+Per-Endpoint Statistics:
+Endpoint        Requests      Success     Failed    Avg Latency    Success Rate
+Token           3,333,333     3,213,333   120,000   65.234ms       96.40%
+Validate        3,333,333     3,206,667   126,666   48.456ms       96.20%
+Revoke          3,333,334     3,180,000   153,334   43.234ms       95.40%
+
+=======================================================================
+
+Load test completed in 1650 seconds (27.5 minutes)
+
+================================================================================
+                      MONITORING DURING THE TEST
+================================================================================
+
+Watch Database Connections:
+  While test is running (open new terminal):
+  
+  docker exec -it oracle-auth-db sqlplus sys/Oracle123!@localhost:1521/XE
+  SQL> SELECT COUNT(*) FROM v$session;
+  
+  Should stay close to connection pool max (25)
+
+Watch Docker Container:
+  docker stats oracle-auth-db
+  
+  Monitor:
+    - CPU usage (should be high, 70-95%)
+    - Memory (should grow, 200-500MB)
+    - Network in/out (should be continuous)
+
+Watch Server Logs:
+  In terminal running: go run main.go
+  
+  Look for:
+    - No panic errors
+    - Consistent request handling
+    - Database connection cycling
+
+Watch System Resources:
+  macOS/Linux:
+    top -p <pid>
+  
+  Windows:
+    Task Manager → Processes
+  
+  Look for:
+    - CPU: 70-95% utilized
+    - Memory: gradual increase then stabilization
+    - Disk: light activity (logging)
+
+================================================================================
+                    SAVING RESULTS & ANALYSIS
+================================================================================
+
+Save to File:
+  ./load-test -url=http://localhost:8080 \
+    -concurrency=500 -requests=20000 | tee 10M_LOAD_TEST_$(date +%Y%m%d_%H%M%S).txt
+
+Analyze Results:
+  1. Check success rate (>90% is good for 10M)
+  2. Calculate average throughput (req/sec)
+  3. Review per-endpoint performance
+  4. Identify any latency spikes
+  5. Compare against baseline
+
+Compare Against Baselines:
+  rqlite baseline:        50 req/sec
+  Oracle baseline:        100 req/sec
+  Your 10M result:        ___ req/sec (calculate)
+  Improvement:            ___ %
+
+================================================================================
+                         TROUBLESHOOTING
+================================================================================
+
+Problem: "Connection refused" during test
+Solution:
+  - Verify server is running: go run main.go output
+  - Check ports: netstat -an | grep 8080
+  - Restart server and try again
+
+Problem: Low success rate (<90%)
+Cause: Possible overload or timeouts
+Solution:
+  - Reduce concurrency: try -concurrency=200 instead
+  - Check server logs for errors
+  - Verify database is responsive
+  - Monitor system resources
+
+Problem: Very slow (< 1000 req/sec with 10M requests)
+Cause: System bottleneck or network issues
+Solution:
+  - Check CPU usage (should be >80%)
+  - Check memory (may need more)
+  - Reduce concurrency
+  - Check database connection pool settings
+
+Problem: Test stalls or hangs
+Cause: System overload or deadlock
+Solution:
+  - Press Ctrl+C to stop test
+  - Check server logs
+  - Restart server: killall -9 go run main.go
+  - Try again with lower concurrency
+
+Problem: Out of memory
+Cause: Load test gobbling memory or server leak
+Solution:
+  - Stop test: Ctrl+C
+  - Restart server
+  - Lower concurrency: -concurrency=100
+  - Add swap/memory to system
+
+================================================================================
+                         TEST VARIATIONS
+================================================================================
+
+Test Specific Client:
+  ./load-test -url=http://localhost:8080 \
+    -concurrency=500 -requests=20000 \
+    -client-id=mobile-app \
+    -client-secret=mobile-secret-12345
+
+Test Against Remote Server:
+  ./load-test -url=http://production-server:8080 \
+    -concurrency=500 -requests=20000
+
+Test with Different Time Periods:
+  Run test at different times:
+    - Off-peak (night)
+    - Peak (business hours)
+    - Special events
+  Compare results to identify patterns
+
+Test with Increasing Load:
+  Run series of tests with growing concurrency:
+    - ./load-test -concurrency=100 -requests=100000   # 10M
+    - ./load-test -concurrency=200 -requests=50000    # 10M
+    - ./load-test -concurrency=500 -requests=20000    # 10M
+    - ./load-test -concurrency=1000 -requests=10000   # 10M
+  Compare results to find optimal concurrency
+
+================================================================================
+                       PERFORMANCE EXPECTATIONS
+================================================================================
+
+Based on Oracle 21c + Go + 10 Worker Pool:
+
+Low Load (1-2M requests):
+  Success Rate: >99%
+  Latency: <30ms avg
+  Throughput: 5000-8000 req/sec
+
+Medium Load (5M requests):
+  Success Rate: >97%
+  Latency: 30-50ms avg
+  Throughput: 4000-6000 req/sec
+
+High Load (10M requests):
+  Success Rate: 90-96%
+  Latency: 50-100ms avg
+  Throughput: 3000-6000 req/sec
+
+Extreme Load (20M+ requests):
+  Success Rate: 80-90%
+  Latency: 100-200ms+ avg
+  Throughput: 2000-4000 req/sec
+
+================================================================================
+                          PREPARATION CHECKLIST
+================================================================================
+
+Before running 10M request test:
+
+  [ ] Database is running and healthy
+  [ ] Server can start: go run main.go
+  [ ] Load test tool built: go build -o load-test load-test.go
+  [ ] Disk space available for logs: >500MB free
+  [ ] System memory sufficient: >4GB available
+  [ ] Network stable: test ping to server
+  [ ] No other heavy loads on system
+  [ ] Ready to let test run for 10-60 minutes
+  [ ] Results file location planned
+
+================================================================================
+                          EXECUTION STEPS
+================================================================================
+
+1. Prepare System
+   - Close unnecessary applications
+   - Verify 4GB+ free memory
+   - Ensure database is ready
+
+2. Terminal 1: Start Server
+   go run main.go
+   Wait for: "Server listening on :8080"
+
+3. Terminal 2: Run 10M Load Test
+   ./load-test -url=http://localhost:8080 \
+     -concurrency=500 -requests=20000 | tee results.txt
+   
+   Let it run (20-30 minutes expected)
+
+4. Monitor (Terminal 3):
+   docker stats oracle-auth-db
+   (Watch CPU, Memory, Network)
+
+5. Analyze Results
+   When complete:
+   - Review console output
+   - Check results.txt file
+   - Compare metrics
+   - Document findings
+
+6. Save Results
+   Results automatically saved to results.txt
+   Archive for future comparison
+
+================================================================================
+                         EXPECTED SUCCESS
+================================================================================
+
+✓ Database handles 10M requests
+✓ Oracle connection pool performs well
+✓ Server remains stable
+✓ Latency stays reasonable (<100ms avg)
+✓ Success rate >90%
+✓ Can process millions of tokens
+✓ Can validate millions of tokens
+✓ Can revoke millions of tokens
+
+Possible Issues:
+  ⚠ Memory pressure (Go garbage collection)
+  ⚠ Database connection pool saturation
+  ⚠ Network bandwidth limits
+  ⚠ Timeout issues (long running test)
+
+================================================================================
+
+Ready to test 10 million requests!
+
+NEXT STEP: Choose an option above and execute:
+
+RECOMMENDED (Option 2 - balanced):
+  docker-compose ps  # Verify database running
+  go run main.go     # Terminal 1: Start server
+  ./load-test -url=http://localhost:8080 \
+    -concurrency=500 -requests=20000 | tee 10M_LOAD_TEST_RESULTS.txt
+
+Expected: 20-30 minutes runtime, 6000+ req/sec throughput
+
+================================================================================

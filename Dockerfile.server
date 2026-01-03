@@ -1,0 +1,22 @@
+FROM golang:1.21-windows/servercore AS builder
+
+WORKDIR /app
+
+# Copy go files
+COPY go.mod go.sum ./
+COPY *.go ./
+COPY auth/ auth/
+
+# Build with CGO
+ENV CGO_ENABLED=1
+RUN go build -o server.exe main.go
+
+FROM mcr.microsoft.com/windows/servercore:ltsc2022
+
+WORKDIR /app
+
+COPY --from=builder /app/server.exe .
+
+EXPOSE 8080
+
+CMD ["server.exe"]

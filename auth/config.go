@@ -104,7 +104,7 @@ func setDefaults() {
 	viper.SetDefault("logging.max_age_days", 14)
 	viper.SetDefault("logging.compress", true)
 	viper.SetDefault("database.host", "localhost")
-	viper.SetDefault("database.port", 4001)
+	viper.SetDefault("database.port", 1521)
 	viper.SetDefault("database.timeout_seconds", 30)
 	viper.SetDefault("jwt.access_duration_minutes", 15)
 	viper.SetDefault("jwt.refresh_duration_hours", 24)
@@ -150,7 +150,7 @@ func applyDefaults() error {
 		AppConfig.Database.Host = "localhost"
 	}
 	if AppConfig.Database.Port == 0 {
-		AppConfig.Database.Port = 4001
+		AppConfig.Database.Port = 1521
 	}
 	if AppConfig.Database.Timeout == 0 {
 		AppConfig.Database.Timeout = 30
