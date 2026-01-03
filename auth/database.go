@@ -17,7 +17,7 @@ import (
 // Example: sys/Oracle123@localhost:1521/XE (with as sysdba)
 func newDbClient(url string) (*sql.DB, error) {
 	log.Debug().Str("url", url).Msg("Connecting to Oracle database")
-	
+
 	// url format: oracle://username:password@host:port/service_name
 	db, err := sql.Open("oracle", url)
 	if err != nil {
@@ -45,7 +45,7 @@ func newDbClient(url string) (*sql.DB, error) {
 func (as *authServer) revokeToken(revokedToken RevokedToken) error {
 	ctx, cancel := context.WithTimeout(as.ctx, 5*time.Second)
 	defer cancel()
-	
+
 	// Begin a Tx for making transaction requests.
 	tx, err := as.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -53,12 +53,12 @@ func (as *authServer) revokeToken(revokedToken RevokedToken) error {
 		return err
 	}
 	defer tx.Rollback()
-	
+
 	// Oracle uses ? placeholders or named parameters like :name
 	// Using named parameters for clarity
 	query := "UPDATE tokens SET revoked = 1, revoked_at = :revoked_at WHERE token_id = :token_id"
-	result, err := tx.ExecContext(ctx, query, 
-		sql.Named("revoked_at", revokedToken.RevokedAt), 
+	result, err := tx.ExecContext(ctx, query,
+		sql.Named("revoked_at", revokedToken.RevokedAt),
 		sql.Named("token_id", revokedToken.TokenID))
 	if err != nil {
 		log.Error().Err(err).Str("token_id", revokedToken.TokenID).Msg("Failed to revoke token")
@@ -70,7 +70,7 @@ func (as *authServer) revokeToken(revokedToken RevokedToken) error {
 		log.Error().Err(err).Msg("Failed to commit token revocation transaction")
 		return err
 	}
-	
+
 	rowsAffected, _ := result.RowsAffected()
 	log.Info().Int64("rows_affected", rowsAffected).Str("token_id", revokedToken.TokenID).Msg("Token revoked successfully")
 	return nil
@@ -80,10 +80,10 @@ func (as *authServer) isTokenRevoked(tokenID string) (bool, error) {
 	var revoked int
 	ctx, cancel := context.WithTimeout(as.ctx, 5*time.Second)
 	defer cancel()
-	
+
 	query := "SELECT revoked FROM tokens WHERE token_id = :token_id"
 	row := as.db.QueryRowContext(ctx, query, sql.Named("token_id", tokenID))
-	
+
 	if err := row.Scan(&revoked); err != nil {
 		if err == sql.ErrNoRows {
 			log.Warn().Str("token_id", tokenID).Msg("Token not found in database")
@@ -92,14 +92,14 @@ func (as *authServer) isTokenRevoked(tokenID string) (bool, error) {
 		log.Error().Err(err).Str("token_id", tokenID).Msg("Database query failed")
 		return false, fmt.Errorf("tokenID %s: %v", tokenID, err)
 	}
-	
+
 	return revoked == 1, nil
 }
 
 func (as *authServer) insertToken(tokenInfo Token) error {
 	ctx, cancel := context.WithTimeout(as.ctx, 5*time.Second)
 	defer cancel()
-	
+
 	// Begin a Tx for making transaction requests.
 	tx, err := as.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -107,7 +107,7 @@ func (as *authServer) insertToken(tokenInfo Token) error {
 		return err
 	}
 	defer tx.Rollback()
-	
+
 	query := "INSERT INTO tokens(token_id, client_id, issued_at, expires_at) VALUES (:token_id, :client_id, :issued_at, :expires_at)"
 	_, err = tx.ExecContext(ctx, query,
 		sql.Named("token_id", tokenInfo.TokenID),
@@ -124,7 +124,7 @@ func (as *authServer) insertToken(tokenInfo Token) error {
 		log.Error().Err(err).Msg("Failed to commit token insertion transaction")
 		return err
 	}
-	
+
 	log.Debug().Str("token_id", tokenInfo.TokenID).Str("client_id", tokenInfo.ClientID).Msg("Token inserted successfully")
 	return nil
 }
